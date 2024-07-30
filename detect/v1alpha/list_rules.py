@@ -47,6 +47,7 @@ def list_rules(
     proj_id: str,
     proj_instance: str,
     proj_region: str,
+    page_size: int | None = None,
     ) -> Mapping[str, Any]:
   """Gets a list of rules.
 
@@ -55,6 +56,10 @@ def list_rules(
     proj_id: GCP project id or number to which the target instance belongs.
     proj_instance: Customer ID (uuid with dashes) for the Chronicle instance.
     proj_region: region in which the target project is located.
+    page_size: The maximum number of rules to return.
+      The service may return fewer than this value. 
+      If unspecified, at most 100 rules will be returned.
+      The maximum value is 1000; values above 1000 will be coerced to 1000.
   Returns:
     Array containing information about rules.
   Raises:
@@ -70,7 +75,12 @@ def list_rules(
   url = f"{base_url_with_region}/v1alpha/{parent}/rules"
 
   # See API reference links at top of this file, for response format.
-  response = http_session.request("GET", url)
+  if page_size:
+    params = {"pageSize": page_size,}
+  else:
+    params = {}
+
+  response = http_session.request("GET", url, params=params)
   if response.status_code >= 400:
     print(response.text)
   response.raise_for_status()
@@ -83,6 +93,12 @@ if __name__ == "__main__":
   project_instance.add_argument_project_instance(parser)
   project_id.add_argument_project_id(parser)
   regions.add_argument_region(parser)
+  parser.add_argument(
+      "--page_size",
+      type=int,
+      required=False,
+      default=None,
+  )
   args = parser.parse_args()
   session = chronicle_auth.initialize_http_session(
       args.credentials_file,
@@ -92,6 +108,7 @@ if __name__ == "__main__":
       session,
       args.project_id,
       args.project_instance,
-      args.region
+      args.region,
+      args.page_size,
   )
   print(json.dumps(rules, indent=2))
